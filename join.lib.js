@@ -1,7 +1,7 @@
 var $s = function (id) { return document.getElementById(id); }
 
 var JoinForm = function () {
-    
+
     this.fields = [];
     this.fields["username"] = {}
     this.fields["password"] = {};
@@ -25,7 +25,7 @@ var JoinForm = function () {
     this.fields["postal"].message = "6 numbers or letters";
     this.fields["zip"].message = "Use 5 or 9 digit ZIP code.";
     this.fields["tele"].message = "Use 999-999-9999 format.";
-    
+
 
     // Field error messages
     this.fields["username"].required = "Username is required.";
@@ -210,6 +210,7 @@ JoinForm.prototype.resetErrors = function () {
     var message;
     for ( var fieldName in this.fields ) {
         $s(fieldName + "_error").className = "";
+        $s(fieldName + "_error").removeAttribute('role');
         message = this.fields[fieldName].message;
         $s(fieldName + "_error").firstChild.nodeValue =
             ( message ) ? message : "";
@@ -220,6 +221,7 @@ JoinForm.prototype.setMessages = function () {
     var message;
     for ( var fieldName in this.fields ) {
         $s(fieldName + "_error").className = "";
+        $s(fieldName + "_error").removeAttribute('role');
         message = this.fields[fieldName].message;
         if(message == undefined){
         	message = "";
@@ -230,6 +232,7 @@ JoinForm.prototype.setMessages = function () {
 JoinForm.prototype.clearError = function ( fieldName ) {
     if(fieldName){
     $s(fieldName + "_error").className = "";
+    $s(fieldName + "_error").removeAttribute('role');
     $s(fieldName + "_error").firstChild.nodeValue = "";
     }
 }
@@ -254,10 +257,11 @@ JoinForm.prototype.validateForm = function () {
             //}
             $s(fieldName + "_error").firstChild.nodeValue = error.message;
             if(error_count == 1){
-            	$s(fieldName).focus();
+                $s(fieldName).focus();
+                $s(fieldName + "_error").setAttribute("role", "alert");
             }
         }
-    	
+
     }
     error_count = 0;
     if(hasErrors === false){
@@ -265,7 +269,7 @@ JoinForm.prototype.validateForm = function () {
         $s("feedback").firstChild.nodeValue = this.success;
         $s("feedback").className = "feedback";
        // Uncomment the next line to add an ARIA alert to the feedback message
-       // $s("feedback").setAttribute("role", "alert");
+       $s("feedback").setAttribute("role", "alert");
     }
     return hasErrors;
 }
