@@ -9,15 +9,15 @@
 		<script src="assets/ik_utils.js"></script>
 		<script src="assets/ik_tooltip.js"></script>
 		<script>
-			
+
 			var timer;
-			
+
 			$(document).ready(function() {
-				
+
 				$(".hastooltip").ik_tooltip();
-				
+
 			});
-			
+
 		</script>
 	</head>
 	<body>
@@ -26,6 +26,7 @@
 			<h1>Tooltip</h1>
 			<p>Lorem ipsum dolor sit <a href="#" class="hastooltip" title="This is a sample link that provides additional information to users by means of a tooltip.">tooltip</a>, consectetur adipiscing elit. Sed blandit pellentesque felis eget venenatis. Duis venenatis consectetur lacinia. Proin elementum eu justo vel dignissim.</p>
 			<p><input type="text" placeholder="Name" value="" class="hastooltip" title="Please enter your name here"></p>
+			<p><a href="#">Added a link after the input element without a tooltip to be able to test input focus blur event more thoroughly.</a></p>
 		</main>
 	</body>
 </html>
