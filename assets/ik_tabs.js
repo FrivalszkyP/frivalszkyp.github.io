@@ -1,11 +1,11 @@
 ;(function ( $, window, document, undefined ) {
-	 
+
 	var pluginName = 'ik_tabs',
 		defaults = {
 			tabLocation: 'top',
 			selectedIndex: 0
 		};
-	
+
 	/**
 	 * @constructs Plugin
 	 * @param {Object} element - Current DOM element from selected collection.
@@ -14,110 +14,157 @@
 	 * @param {number} [options.selectedIndex] - Initially selected tab.
 	 */
 	function Plugin( element, options ) {
-		
+
 		this._name = pluginName;
 		this._defaults = defaults;
 		this.element = $(element);
 		this.options = $.extend( {}, defaults, options) ;
-		
+
 		this.init();
 	}
-	
+
 	/** Initializes plugin. */
 	Plugin.prototype.init = function () {
-		
+
 		var id, $elem, $tabbar, pad;
-		
+
 		plugin = this;
 		id = 'tabs' + $('.ik_tabs').length; // create unique id
 		$elem = this.element.addClass('ik_tabs');
-		
+
 		$tabbar = $('<ul/>') // create ul element to hold all tabs
 			.addClass('ik_tabbar cf')
+			.attr('role', 'tablist')
 			.prependTo($elem);
-		
+
 		plugin.panels = $elem // initialize panels and create tabs
 			.children('div')
 			.each( function(i, el) {
-				
+
 				var $tab, $panel, lbl;
-				
+
 				$panel = $(el).attr({
-					'id': id + '_panel' + i  // add unique id for a panel					
+					'id': id + '_panel' + i,  // add unique id for a panel
+					role: 'tabpanel',
+					'aria-labelledby': id + '_tab' + i,
+					'aria-hidden': 'true',
+					'tabindex': '0'
 				})
 				.addClass('ik_tabpanel')
 				.hide();
-				
-				lbl = $panel.attr('title'); // get tab label from panel title
-				
-				$panel.removeAttr('title');
-				
-				$tab = $('<li/>').attr({
-					'id': id + '_tab' + i // create unique id for a tab
 
+				lbl = $panel.attr('title'); // get tab label from panel title
+
+				$panel.removeAttr('title');
+
+				$tab = $('<li/>').attr({
+					'id': id + '_tab' + i, // create unique id for a tab
+					'aria-controls': id + '_panel' + i
 				})
 				.text(lbl > '' ? lbl : 'Tab ' + (i + 1))
+				.on('keydown', {plugin: plugin, index: i}, plugin.onKeyDown)
 				.on('click', {'plugin': plugin, 'index': i}, plugin.selectTab) // add mouse event handler
 				.appendTo($tabbar);
 			});
-		
+
 		plugin.tabs = $tabbar.find('li');
-		
-		plugin.selectTab({ // select a pre-defined tab / panel 
+
+		plugin.selectTab({ // select a pre-defined tab / panel
 			data:{
-				'plugin': plugin, 
+				'plugin': plugin,
 				'index': plugin.options.selectedIndex
 			}
 		});
 	};
-	
-	/** 
+
+	/**
 	 * Selects specified tab.
-	 * 
+	 *
 	 * @param {Object} [event] - Keyboard event (optional).
 	 * @param {object} event.data - Event data.
 	 * @param {object} event.data.plugin - Reference to plugin.
 	 * @param {object} event.data.index - Index of a tab to be selected.
 	 */
 	Plugin.prototype.selectTab = function (event) {
-		
-		var plugin = event.data.plugin, 
-			ind = event.data.index, 
-			$tabs, 
+
+		var plugin = event.data.plugin,
+			ind = event.data.index,
+			$tabs,
 			$panels;
-		
+
 		$elem = plugin.element;
 		$tabs = plugin.tabs;
 		$panels = plugin.panels;
-		
+
 		$tabs // deselect all tabs
 			.removeClass('selected')
+			.attr({
+				tabindex: '-1',
+				'aria-selected': 'false',
+				role: 'tab'
+			})
 			.blur();
-		
+
 		$($tabs[ind]) // select specified tab
+			.attr({
+				tabindex: '0',
+				'aria-selected': 'true'
+			})
 			.addClass('selected');
-		
+
 		if (event.type) $($tabs[ind]).focus(); // move focus to current tab if reached by mouse or keyboard
-		
+
 		$panels // hide all panels
-			.hide(); 
-		
+			.attr('aria-hidden', 'true')
+			.hide();
+
 		$($panels[ind]) // show current panel
-			.show(); 
-		
+			.attr('aria-hidden', 'false')
+			.show();
+
 	}
-	
+
+	Plugin.prototype.onKeyDown = function (event) {
+		var plugin = event.data.plugin;
+		var ind = event.data.index;
+		var $tabs = plugin.tabs;
+		var next;
+
+		switch(event.keyCode) {
+			case ik_utils.keys.left:
+			case ik_utils.keys.up:
+				event.preventDefault(); // prevent accidental scrolling
+				next = ind > 0 ? --ind : 0;
+				// added Object.assign to extend the original event object to preserv event.type
+				// which is needed in the selectTab handler
+				plugin.selectTab(Object.assign({}, event, {data:{'plugin': plugin, 'index': next}}));
+				break;
+			case ik_utils.keys.right:
+			case ik_utils.keys.down:
+				event.preventDefault(); // prevent accidental scrolling
+				next = ind < $tabs.length - 1 ? ++ind : $tabs.length - 1;
+				// added Object.assign to extend the original event object to preserv event.type
+				// which is needed in the selectTab handler
+				plugin.selectTab(Object.assign({}, event, {data:{'plugin': plugin, 'index': next}}));
+				break;
+			case ik_utils.keys.space:
+				event.preventDefault();
+				event.stopPropagation();
+				return false;
+		}
+	};
+
 	$.fn[pluginName] = function ( options ) {
-		
+
 		return this.each(function () {
-			
+
 			if ( !$.data(this, pluginName )) {
 				$.data( this, pluginName,
 				new Plugin( this, options ));
 			}
-			
+
 		});
-		
+
 	}
- 
+
 })( jQuery, window, document );
