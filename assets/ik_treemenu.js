@@ -1,11 +1,12 @@
 ;(function ( $, window, document, undefined ) {
- 
+
 	var pluginName = 'ik_treemenu',
 		defaults = {
 			'menuTitle': 'Breakfast Menu',
-			'expandAll': true
+			'expandAll': true,
+			'instructions': 'Use up or down arrows to move through menu items, and Enter or Spacebar to toggle submenus open and closed.'
 		};
-	 
+
 	/**
 	 * @constructs Plugin
 	 * @param {Object} element - Current DOM element from selected collection.
@@ -14,183 +15,276 @@
 	 * @param {number} [options.expandAll] - Expands all tree branches when true.
 	 */
 	function Plugin( element, options ) {
-		
+
 		this._name = pluginName;
 		this._defaults = defaults;
 		this.element = $(element);
 		this.options = $.extend( {}, defaults, options) ;
-		
+
 		this.init();
 	}
-	
+
 	/** Initializes plugin. */
 	Plugin.prototype.init = function () {
-		
+
 		var id, $elem, plugin;
-		
+
 		plugin = this;
 		$elem = plugin.element;
 		id = 'tree' + $('.ik_treemenu').length; // create unique id
-				
-		$elem.addClass('ik_treemenu');
-		
+
+		$elem
+			.addClass('ik_treemenu')
+			.attr({
+				'tabindex': '0',
+				'aria-labelledby': id + '_instructions'
+			});
+
 		$('<div/>') // add div element to be used with aria-labelledby attribute of the menu
 			.text(plugin.options.instructions) // get instruction text from plugin options
 			.addClass('ik_readersonly') // hide element from visual display
 			.attr({
-				'id': id + '_instructions', 
+				'id': id + '_instructions',
+				'aria-hidden': 'true'
 			})
 			.appendTo($elem);
-		
+
 		$('<div/>') // add menu title
 			.addClass('title')
 			.text( this.options.menuTitle )
-			.attr({ 
+			.attr({
 				'id': id + '_title'
 			})
 			.prependTo($elem);
-		
-		$elem 
+
+		$elem
 			.find('ul:first')  // set topmost ul element as a tree container
 			.attr({
-				'id': id
+				'id': id,
+				'role': 'tree',
+				'aria-labelledby': id + '_title'
 			});
-		
+
 		$elem // set all li elements as tree folders and items
 			.find('li')
 			.css({ 'list-style': 'none' })
 			.each(function(i, el) {
-				
+
 				var $me;
-				
+
 				$me = $(el);
-				
+
 				$me.attr({
-					'id': id + '_menuitem_' + i
+					'id': id + '_menuitem_' + i,
+					'tabindex': '-1',
+					'role': 'treeitem',
+					'aria-level': $me.parents('ul').length,
+					'aria-setsize': $me.parent().children().length,
+					'aria-posinset': $me.parent().children().index($me) + 1
 					});
-				
+
 				$($me.contents()[0]).wrap('<span></span>'); // wrap text element of each treitem with span element
-				
+
 				if ($me.children('ul').length) {  // if the current treeitem has submenu
-					
+
 					if (plugin.options.expandAll) { // expand or collapse all tree levels based on configuration
-              // don't do anything
+						$me.attr({
+							'aria-expanded': 'true'
+						});
 					} else {
-						$me.addClass('collapsed');
+						$me.attr({
+							'aria-expanded': 'false'
+						}).addClass('collapsed');
 					}
-					
+
 					$me
+						.attr('aria-label', $me.children('span:first').text())
 						.children('span')
 						.addClass('folder')
-            ;
-					
+            .attr('role', 'presentation');
+
 				} else {
-					
-					//aria-selected goes here
-					
+
+					$me.attr({'aria-selected': false});
+
 				}
-			
+
 			})
-			.on('click', {'plugin': plugin}, plugin.onClick);
-		
+			.on('click', {'plugin': plugin}, plugin.onClick)
+			.on('keydown', {'plugin': plugin}, plugin.onKeyDown);
+
+			$elem // make the first treeitem focusable
+				.find('li:first')
+				.attr('tabindex', '0');
 	};
-	
-	/** 
+
+	/**
 	 * Selects treeitem.
-	 * 
+	 *
 	 * @param {object} $item - jQuery object containing treeitem to select.
 	 * @param {object} plugin - reference to plugin.
 	 */
 	Plugin.prototype.selectItem = function($item, plugin) {
 		var $elem = plugin.element;
-		
+
 		$elem.find('.focused') // remove highlight form previousely selected treeitem
 			.removeClass('focused');
-		
+
+		$elem.find('[aria-selected="true"]')
+			.attr({
+				'aria-selected': 'false',
+				tabindex: '-1'
+			});
+
+		$elem.find('li').attr({
+			'tabindex': '-1'
+		});
+
+		$item.attr({
+			'tabindex': '0',
+			'aria-selected': 'true'
+		});
+
 		if ($item.children('ul').length) { // highlight selected treeitem
 			$item.children('span').addClass('focused');
 		} else {
 			$item.addClass('focused');
 		}
-		
+
 		$item.focus();
 	};
-	
-	/** 
+
+	/**
 	 * Toggles submenu.
-	 * 
+	 *
 	 * @param {object} $item - jQuery object containing treeitem with submenu.
 	 */
 	Plugin.prototype.toggleSubmenu = function($item) {
-		
+
 		if($item.children('ul').length) { // check if the treeitem contains submenu
-			
+
 			if ($item.hasClass('collapsed')) {  // expand if collapsed
-      
-				$item.removeClass('collapsed');
-        
+
+				$item
+					.removeClass('collapsed')
+					.attr('aria-expanded', 'true');
+
 			} else { 							// otherwise collapse
-      
-				$item.addClass('collapsed');
-        
+
+				$item
+					.addClass('collapsed')
+					.attr('aria-expanded', 'false');
+
 			}
-      
+
 		}
 	}
-	
-	/** 
+
+	/**
 	 * Handles mouseover event on header button.
-	 * 
+	 *
 	 * @param {Object} event - Event object.
 	 * @param {object} event.data - Event data.
 	 * @param {object} event.data.plugin - Reference to plugin.
 	 */
 	Plugin.prototype.onMouseOver = function (event) {
-		
+
 		var plugin = event.data.plugin,
 			$me = $(event.currentTarget);
-		
+
 		event.stopPropagation();
-		
+
 		plugin.element // remove highlight form previous treeitem
 			.find('.mouseover')
 			.removeClass('mouseover');
-		
+
 		$me.children('span') // add highlight to currently selected treeitem
-			.addClass('mouseover'); 
-		
+			.addClass('mouseover');
+
 	}
-	
-	/** 
+
+	/**
 	 * Handles click event on header button.
-	 * 
+	 *
 	 * @param {Object} event - Event object.
 	 * @param {object} event.data - Event data.
 	 * @param {object} event.data.plugin - Reference to plugin.
 	 */
 	Plugin.prototype.onClick = function (event) {
-		
+
 		var plugin = event.data.plugin,
 			$me = $(event.currentTarget);
-		
+
 		event.preventDefault();
 		event.stopPropagation();
-		
+
 		plugin.toggleSubmenu($me);
 		plugin.selectItem($me, plugin);
 	};
-	
+
+	Plugin.prototype.onKeyDown = function (event) {
+		var plugin = event.data.plugin;
+		var $elem = plugin.element;
+		var $me = $(event.currentTarget);
+		var $visibleNodes;
+		var newIndex;
+
+		switch (event.keyCode) {
+			case ik_utils.keys.down:
+				$visibleNodes = $elem.find('[role="treeitem"]:visible');
+				newIndex = $visibleNodes.index($me) + 1;
+				event.preventDefault();
+				event.stopPropagation();
+				if (newIndex < $visibleNodes.length) {
+					plugin.selectItem($visibleNodes.eq(newIndex), plugin);
+				}
+				break;
+			case ik_utils.keys.up:
+				$visibleNodes = $elem.find('[role="treeitem"]:visible');
+				newIndex = $visibleNodes.index($me) - 1;
+				event.preventDefault();
+				event.stopPropagation();
+				if (newIndex >= 0) {
+					plugin.selectItem($visibleNodes.eq(newIndex), plugin);
+				}
+				break;
+			case ik_utils.keys.right:
+				event.preventDefault();
+				event.stopPropagation();
+				if ($me.attr('aria-expanded') === 'false') {
+					plugin.toggleSubmenu($me);
+				} else if ($me.attr('aria-expanded') === 'true') {
+					plugin.selectItem($me.find('[role="treeitem"]').eq(0), plugin);
+				}
+				break;
+			case ik_utils.keys.left:
+				event.preventDefault();
+				event.stopPropagation();
+				if ($me.attr('aria-expanded') === 'true') {
+					plugin.toggleSubmenu($me);
+				} else if ($me.parents('[role="treeitem"]').length) {
+					plugin.selectItem($me.parent().closest('[role="treeitem"]'), plugin);
+				}
+				break;
+			case ik_utils.keys.enter:
+			case ik_utils.keys.space:
+				event.preventDefault();
+				event.stopPropagation();
+				plugin.toggleSubmenu($me);
+		}
+	}
+
 	$.fn[pluginName] = function ( options ) {
-		
+
 		return this.each(function () {
-			
+
 			if ( !$.data(this, pluginName )) {
 				$.data( this, pluginName,
 				new Plugin( this, options ));
 			}
-			
+
 		});
-		
+
 	}
- 
+
 })( jQuery, window, document );
